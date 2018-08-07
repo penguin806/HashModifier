@@ -1,28 +1,10 @@
 //Snow 2015-10-23
-#include <stdio.h>
 #include <Windows.h>
+#include "MainFrame.h"
+#include "FileOperation.h"
 #include "resource.h"
 
-#define MAX_DRAG_FILE 10
-#define ID_EDIT_BOX 0X01
-#define ID_BUTTON_OK 0X02
-#define ID_BUTTON_ABOUT 0X03
-#define ID_BUTTON_WEBSITE 0X04
-
-#ifdef UNICODE
-#define FOPEN _wfopen
-#else
-#define FOPEN fopen
-#endif
-
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-BOOL SetValue(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], UINT *uFileNum, UINT *uSuccessNum);
-UINT DragFile(HWND hWnd, HDROP hDrop, TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH]);
-BOOL DisplayFormat(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], UINT uFileNum);
-UINT GetTextBox(TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], TCHAR szFileName[10][MAX_PATH]);
-UINT HashMod(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], UINT uFileNum);
-
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int iCmdShow)
+INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, INT iCmdShow)
 {
 	WNDCLASS WindowClass;
 	HWND hWnd;
@@ -90,11 +72,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		SetWindowText(hEditBox, szNameBuffer);
 		return 0;
 	case WM_COMMAND:
-		switch (LOWORD(wParam))
+		if (HIWORD(wParam) == BN_CLICKED)
 		{
-		case ID_BUTTON_OK:
-			if (HIWORD(wParam) == BN_CLICKED)
+			switch (LOWORD(wParam))
 			{
+			case ID_BUTTON_OK:
 				SetValue(szFileName, szNameBuffer, &uFileNum, &uSuccessNum);
 				GetWindowText(hEditBox, szNameBuffer, MAX_DRAG_FILE*MAX_PATH);
 				uFileNum = GetTextBox(szNameBuffer, szFileName);
@@ -106,16 +88,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				uSuccessNum = HashMod(szFileName, uFileNum);
 				wsprintf(szDisplayBuffer, TEXT("共修改 %d 个文件, 其中成功 %d 个, 失败 %d 个"), uFileNum, uSuccessNum, uFileNum - uSuccessNum);
 				MessageBox(hWnd, szDisplayBuffer, TEXT("Result"), MB_OK | MB_ICONINFORMATION);
+				break;
+			case ID_BUTTON_ABOUT:
+				MessageBox(hWnd, TEXT("Hash Modifier\nChange your File Fingerprint easily!\nVersion: \tv1.1\nAuthor: \t雪峰"), TEXT("About"), MB_OK);
+				break;
+			case ID_BUTTON_WEBSITE:
+				ShellExecute(NULL, TEXT("open"), TEXT("http://www.xsnow.moe/2015/10/23/HashModifier"), NULL, NULL, SW_NORMAL);
+				break;
 			}
-			break;
-		case ID_BUTTON_ABOUT:
-			MessageBox(hWnd, TEXT("Hash Modifier\nChange your File Fingerprint easily!\nVersion: \tv1.0\nAuthor: \t雪峰"), TEXT("About"), MB_OK);
-			break;
-		case ID_BUTTON_WEBSITE:
-			ShellExecute(NULL, TEXT("open"), TEXT("http://www.xsnow.moe/2015/10/23/HashModifier"), NULL, NULL, SW_NORMAL);
-			break;
+			return 0;
 		}
-		return 0;
 	case WM_CLOSE:
 		PostQuitMessage(0);
 		return 0;
@@ -149,34 +131,6 @@ BOOL DisplayFormat(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], TCHAR szNameBuffer
 	return TRUE;
 }
 
-UINT HashMod(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], UINT uFileNum)
-{
-	int iResult = 0;
-	UINT uCount, uSuccess = 0;
-	FILE *fp;
-	for (uCount = 0; uCount < uFileNum; uCount++)
-	{
-		fp = FOPEN(szFileName[uCount], TEXT("ab"));
-		if (fp == NULL)
-			continue;
-		iResult = fseek(fp, 0L, 2);
-		if (iResult == -1)
-		{
-			fclose(fp);
-			continue;
-		}
-		iResult = fwrite("\0", 1, 1, fp);
-		if (iResult != 1)
-		{
-			fclose(fp);
-			continue;
-		}
-		fclose(fp);
-		uSuccess++;
-	}
-	return uSuccess;
-}
-
 UINT GetTextBox(TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], TCHAR szFileName[10][MAX_PATH])
 {
 	TCHAR *temp, *p;
@@ -203,16 +157,5 @@ UINT GetTextBox(TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], TCHAR szFileName[1
 		szFileName[i][j++] = *p++;
 	}
 	return uFileNum;
-}
-
-BOOL SetValue(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], UINT *uFileNum, UINT *uSuccessNum)
-{
-	UINT i;
-	for (i = 0; i < MAX_DRAG_FILE; i++)
-		wcscpy(szFileName[i], TEXT("\0"));
-	wcscpy(szNameBuffer, TEXT("\0"));
-	*uFileNum = 0;
-	*uSuccessNum = 0;
-	return TRUE;
 }
 

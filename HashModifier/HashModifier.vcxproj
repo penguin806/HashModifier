@@ -148,9 +148,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Source.c" />
+    <ClCompile Include="FileOperation.c" />
+    <ClCompile Include="MainFrame.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FileOperation.h" />
+    <ClInclude Include="MainFrame.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
