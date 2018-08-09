@@ -4,12 +4,40 @@
 #include "FileOperation.h"
 #include "resource.h"
 
-INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, INT iCmdShow)
+INT WINAPI WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE hPrevInstance, _In_ LPTSTR lpCmdLine, _In_ INT iCmdShow)
+{
+	LPTSTR szWndClassName = TEXT("Xfen");
+	HWND hWnd;
+	MSG Message;
+
+	FILEPATHLIST PathList;
+	ZeroMemory(&PathList, sizeof(FILEPATHLIST));
+	
+	if (FALSE == RegisterWindowClass(hInstance, szWndClassName))
+	{
+		MessageBox(NULL, TEXT("Register Window Class Fail!"), TEXT("ERROR"), MB_OK | MB_ICONERROR);
+		return 0;
+	}
+	
+	hWnd = CreateWindow(szWndClassName, TEXT("Hash Modifier"), WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 345, 250, NULL, NULL, hInstance, &PathList);
+	if (NULL == hWnd)
+	{
+		MessageBox(NULL, TEXT("Create Window Fail!"), TEXT("ERROR"), MB_OK | MB_ICONERROR);
+		return 0;
+	}
+	ShowWindow(hWnd, iCmdShow);
+	UpdateWindow(hWnd);
+	while (GetMessage(&Message, NULL, 0, 0))
+	{
+		TranslateMessage(&Message);
+		DispatchMessage(&Message);
+	}
+	return 0;
+}
+
+BOOL RegisterWindowClass(_In_ HINSTANCE hInstance, _In_ LPTSTR szWndClassName)
 {
 	WNDCLASS WindowClass;
-	HWND hWnd;
-	MSG msg;
-	TCHAR szAppName[] = TEXT("Xfen");
 	WindowClass.hInstance = hInstance;
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;
 	WindowClass.lpfnWndProc = WndProc;
@@ -18,48 +46,43 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLin
 	WindowClass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
 	WindowClass.hCursor = LoadCursor(hInstance, MAKEINTRESOURCE(IDC_CURSOR));
 	WindowClass.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
-	WindowClass.lpszClassName = szAppName;
+	WindowClass.lpszClassName = szWndClassName;
 	WindowClass.lpszMenuName = NULL;
-	if (RegisterClass(&WindowClass) == 0)
+
+	if (RegisterClass(&WindowClass))
 	{
-		MessageBox(NULL, TEXT("Register Window Class Fail!"), TEXT("ERROR"), MB_OK | MB_ICONERROR);
-		return 0;
+		return TRUE;
 	}
-	hWnd = CreateWindow(szAppName, TEXT("Hash Modifier"), WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 345, 250, NULL, NULL, hInstance, NULL);
-	if (hWnd == NULL)
+	else
 	{
-		MessageBox(NULL, TEXT("Create Window Fail!"), TEXT("ERROR"), MB_OK | MB_ICONERROR);
-		return 0;
+		return FALSE;
 	}
-	ShowWindow(hWnd, iCmdShow);
-	UpdateWindow(hWnd);
-	while (GetMessage(&msg, NULL, 0, 0))
-	{
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-	return 0;
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
 	BOOL bStatus = FALSE;
-	HINSTANCE hInstance = GetModuleHandle(0);
 	static UINT uFileNum, uSuccessNum;
 	static TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], szNameBuffer[10 * MAX_PATH], szDisplayBuffer[64];
 	static HWND hEditBox, hButtonOk, hButtonAbout, hButtonWebsite;
+
+	FILEPATHLIST *PathList;
 	switch (uMsg)
 	{
 	case WM_CREATE:
-		hEditBox = CreateWindow(TEXT("edit"), NULL, WS_CHILD | WS_BORDER | WS_VISIBLE | ES_MULTILINE | ES_AUTOHSCROLL, 20, 5, 300, 150, hWnd, (HMENU)ID_EDIT_BOX, hInstance, NULL);
-		hButtonOk = CreateWindow(TEXT("button"), NULL, WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | BS_ICON, 30, 160, 48, 48, hWnd, (HMENU)ID_BUTTON_OK, hInstance, NULL);
-		hButtonAbout = CreateWindow(TEXT("button"), NULL, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_ICON, 145, 160, 48, 48, hWnd, (HMENU)ID_BUTTON_ABOUT, hInstance, NULL);
-		hButtonWebsite = CreateWindow(TEXT("button"), NULL, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_ICON, 260, 160, 48, 48, hWnd, (HMENU)ID_BUTTON_WEBSITE, hInstance, NULL);
-		SendMessage(hButtonOk, BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON2)));
-		SendMessage(hButtonAbout, BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON3)));
-		SendMessage(hButtonWebsite, BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON4)));
+	{
+		CREATESTRUCT *Cs = (LPCREATESTRUCT)lParam;
+		PathList = (FILEPATHLIST *)Cs->lpCreateParams;
+		hEditBox = CreateWindow(TEXT("EDIT"), NULL, WS_CHILD | WS_VISIBLE | WS_BORDER | ES_MULTILINE | ES_AUTOHSCROLL, 20, 5, 300, 150, hWnd, (HMENU)ID_EDIT_BOX, Cs->hInstance, NULL);
+		hButtonOk = CreateWindow(TEXT("BUTTON"), NULL, WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | BS_ICON, 30, 160, 48, 48, hWnd, (HMENU)ID_BUTTON_OK, Cs->hInstance, NULL);
+		hButtonAbout = CreateWindow(TEXT("BUTTON"), NULL, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_ICON, 145, 160, 48, 48, hWnd, (HMENU)ID_BUTTON_ABOUT, Cs->hInstance, NULL);
+		hButtonWebsite = CreateWindow(TEXT("BUTTON"), NULL, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_ICON, 260, 160, 48, 48, hWnd, (HMENU)ID_BUTTON_WEBSITE, Cs->hInstance, NULL);
+		SendMessage(hButtonOk, BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadIcon(Cs->hInstance, MAKEINTRESOURCE(IDI_ICON2)));
+		SendMessage(hButtonAbout, BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadIcon(Cs->hInstance, MAKEINTRESOURCE(IDI_ICON3)));
+		SendMessage(hButtonWebsite, BM_SETIMAGE, IMAGE_ICON, (LPARAM)LoadIcon(Cs->hInstance, MAKEINTRESOURCE(IDI_ICON4)));
 		DragAcceptFiles(hWnd, TRUE);
 		break;
+	}
 	case WM_DROPFILES:
 		SetValue(szFileName, szNameBuffer, &uFileNum, &uSuccessNum);
 		uFileNum = DragFile(hWnd, (HDROP)wParam, szFileName);
@@ -96,9 +119,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				ShellExecute(NULL, TEXT("open"), TEXT("http://www.xsnow.moe/2015/10/23/HashModifier"), NULL, NULL, SW_NORMAL);
 				break;
 			}
-			return 0;
 		}
-	case WM_CLOSE:
+		return 0;
+	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
 	}

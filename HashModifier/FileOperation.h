@@ -7,5 +7,13 @@
 #define FOPEN fopen
 #endif
 
+struct FilePathList
+{
+	LPTSTR szFilePath;
+	UINT uCurrentFileNum;
+};
+typedef struct FilePathList FILEPATHLIST;
+
+
 BOOL SetValue(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], UINT *uFileNum, UINT *uSuccessNum);
 UINT HashMod(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], UINT uFileNum);
