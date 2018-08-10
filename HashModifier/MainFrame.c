@@ -1,11 +1,14 @@
-//Snow 2015-10-23
+//Snow 2015-10-23 Initial Version
+//Snow 2018-08 Version 1.1
 #include <Windows.h>
 #include "MainFrame.h"
 #include "FileOperation.h"
 #include "resource.h"
 
-INT WINAPI WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE hPrevInstance, _In_ LPTSTR lpCmdLine, _In_ INT iCmdShow)
+INT WINAPI WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ INT iCmdShow)
 {
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(lpCmdLine);
 	LPTSTR szWndClassName = TEXT("Xfen");
 	HWND hWnd;
 	MSG Message;
@@ -61,12 +64,12 @@ BOOL RegisterWindowClass(_In_ HINSTANCE hInstance, _In_ LPTSTR szWndClassName)
 
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
-	BOOL bStatus = FALSE;
 	static UINT uFileNum, uSuccessNum;
 	static TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], szNameBuffer[10 * MAX_PATH], szDisplayBuffer[64];
 	static HWND hEditBox, hButtonOk, hButtonAbout, hButtonWebsite;
 
-	FILEPATHLIST *PathList;
+	BOOL bResult;
+	static FILEPATHLIST *PathList;
 	switch (uMsg)
 	{
 	case WM_CREATE:
@@ -83,17 +86,17 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
 		DragAcceptFiles(hWnd, TRUE);
 		break;
 	}
+
 	case WM_DROPFILES:
-		SetValue(szFileName, szNameBuffer, &uFileNum, &uSuccessNum);
-		uFileNum = DragFile(hWnd, (HDROP)wParam, szFileName);
-		if (uFileNum == 0)
+		bResult = RetrieveDragFilePath((HDROP)wParam, PathList);
+		if (FALSE == bResult)
 		{
-			MessageBox(hWnd, TEXT("不正确的文件数"), TEXT("ERROR"), MB_OK | MB_ICONERROR);
+			MessageBox(hWnd, TEXT("获取拖入文件路径失败"), TEXT("ERROR"), MB_OK | MB_ICONERROR);
 			return 0;
 		}
-		DisplayFormat(szFileName, szNameBuffer, uFileNum);
-		SetWindowText(hEditBox, szNameBuffer);
+		DisplayPathListInEditBox(hEditBox, PathList);
 		return 0;
+
 	case WM_COMMAND:
 		if (HIWORD(wParam) == BN_CLICKED)
 		{
@@ -121,6 +124,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
 			}
 		}
 		return 0;
+
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
@@ -128,30 +132,54 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
 	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-UINT DragFile(HWND hWnd, HDROP hDrop, TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH])
+BOOL RetrieveDragFilePath(_In_ HDROP hDrop, _Inout_ FILEPATHLIST *PathList)
 {
-	UINT uCount, uStatus, uFileNum = 0;
-	uFileNum = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
-	if (uFileNum > MAX_DRAG_FILE)
-		return 0;
-	for (uCount = 0; uCount < uFileNum; uCount++)
+	if (NULL == hDrop || NULL == PathList)
 	{
-		uStatus = DragQueryFile(hDrop, uCount, szFileName[uCount], MAX_PATH);
-		if (!uStatus)
-			return 0;
+		return FALSE;
 	}
-	return uFileNum;
+	UINT uDragFileNum = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
+	UINT uCurrentNum = 0;
+	TCHAR szBuffer[MAX_PATH];
+
+	while (uCurrentNum < uDragFileNum)
+	{
+		UINT uReturnValue = DragQueryFile(hDrop, uCurrentNum, szBuffer, MAX_PATH);
+		if (uReturnValue)
+		{
+			AppendPathToFilePathList(szBuffer, PathList);
+		}
+		else
+		{
+			DestroyFilePathList(PathList);
+			return FALSE;
+		}
+		uCurrentNum++;
+	}
+
+	return TRUE;
 }
 
-BOOL DisplayFormat(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], UINT uFileNum)
+VOID DisplayPathListInEditBox(_In_ HWND hEditBox, _Inout_ FILEPATHLIST *PathList)
 {
-	UINT uCount;
-	for (uCount = 0; uCount < uFileNum; uCount++)
+	if (NULL == hEditBox || NULL == PathList)
 	{
-		wcscat(szNameBuffer, szFileName[uCount]);
-		wcscat(szNameBuffer, TEXT("\r\n"));
+		return;
 	}
-	return TRUE;
+	UINT uBytesRequiredForMerge = CalcBytesRequiredForMergeFilePathList(PathList);
+	if (0 == uBytesRequiredForMerge)
+	{
+		return;
+	}
+
+	LPTSTR szMultilineString = LocalAlloc(LMEM_FIXED, uBytesRequiredForMerge);
+	if (NULL == szMultilineString)
+	{
+		return;
+	}
+
+	MergeFilePathListIntoOneMultiLineString(szMultilineString, uBytesRequiredForMerge, PathList);
+	SetWindowText(hEditBox, szMultilineString);
 }
 
 UINT GetTextBox(TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], TCHAR szFileName[10][MAX_PATH])
