@@ -153,11 +153,13 @@ BOOL RetrieveDragFilePath(_In_ HDROP hDrop, _Inout_ FILEPATHLIST *PathList)
 		else
 		{
 			DestroyFilePathList(PathList);
+			DragFinish(hDrop);
 			return FALSE;
 		}
 		uCurrentNum++;
 	}
 
+	DragFinish(hDrop);
 	return TRUE;
 }
 
