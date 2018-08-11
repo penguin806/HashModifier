@@ -1,5 +1,4 @@
 #pragma once
-#define MAX_DRAG_FILE 10
 
 #ifdef UNICODE
 #define FOPEN _wfopen
@@ -26,5 +25,5 @@ BOOL AppendPathToFilePathList(_In_ LPTSTR szFilePathStr, _Inout_ FILEPATHLIST *P
 VOID DestroyFilePathList(_Inout_ FILEPATHLIST *PathList);
 UINT CalcBytesRequiredForMergeFilePathList(_In_ FILEPATHLIST *PathList);
 VOID MergeFilePathListIntoOneMultiLineString(_Inout_ LPTSTR szMultilineString, _In_ UINT uBufferSizeInBytes, _In_ FILEPATHLIST *PathList);
-BOOL SetValue(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], UINT *uFileNum, UINT *uSuccessNum);
-UINT HashMod(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], UINT uFileNum);
+VOID SplitOneMultiLineStringIntoFilePathList(_In_ LPTSTR szMultilineString, _In_ UINT uStringLength, _Inout_ FILEPATHLIST *PathList);
+VOID ModifyHashOfEachFileInList(_In_ FILEPATHLIST *PathList, _Out_ UINT *uSuccuessNum, _Out_ UINT *uFailedNum);

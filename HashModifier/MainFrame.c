@@ -1,6 +1,7 @@
 //Snow 2015-10-23 Initial Version
 //Snow 2018-08 Version 1.1
 #include <Windows.h>
+#include <strsafe.h>
 #include "MainFrame.h"
 #include "FileOperation.h"
 #include "resource.h"
@@ -64,11 +65,8 @@ BOOL RegisterWindowClass(_In_ HINSTANCE hInstance, _In_ LPTSTR szWndClassName)
 
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
-	static UINT uFileNum, uSuccessNum;
-	static TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], szNameBuffer[10 * MAX_PATH], szDisplayBuffer[64];
-	static HWND hEditBox, hButtonOk, hButtonAbout, hButtonWebsite;
-
 	BOOL bResult;
+	static HWND hEditBox, hButtonOk, hButtonAbout, hButtonWebsite;
 	static FILEPATHLIST *PathList;
 	switch (uMsg)
 	{
@@ -91,7 +89,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
 		bResult = RetrieveDragFilePath((HDROP)wParam, PathList);
 		if (FALSE == bResult)
 		{
-			MessageBox(hWnd, TEXT("获取拖入文件路径失败"), TEXT("ERROR"), MB_OK | MB_ICONERROR);
+			MessageBox(hWnd, TEXT("获取拖入文件路径列表失败"), TEXT("ERROR"), MB_OK | MB_ICONERROR);
 			return 0;
 		}
 		DisplayPathListInEditBox(hEditBox, PathList);
@@ -103,18 +101,20 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
 			switch (LOWORD(wParam))
 			{
 			case ID_BUTTON_OK:
-				SetValue(szFileName, szNameBuffer, &uFileNum, &uSuccessNum);
-				GetWindowText(hEditBox, szNameBuffer, MAX_DRAG_FILE*MAX_PATH);
-				uFileNum = GetTextBox(szNameBuffer, szFileName);
-				if (uFileNum == 0)
+			{
+				bResult = FillFilePathListFromEditBox(hEditBox, PathList);
+				if (FALSE == bResult)
 				{
-					MessageBox(hWnd, TEXT("不合法的文件名"), TEXT("Error"), MB_OK | MB_ICONERROR);
+					MessageBox(hWnd, TEXT("从编辑框中读取路径列表失败"), TEXT("Error"), MB_OK | MB_ICONERROR);
 					return 0;
 				}
-				uSuccessNum = HashMod(szFileName, uFileNum);
-				wsprintf(szDisplayBuffer, TEXT("共修改 %d 个文件, 其中成功 %d 个, 失败 %d 个"), uFileNum, uSuccessNum, uFileNum - uSuccessNum);
-				MessageBox(hWnd, szDisplayBuffer, TEXT("Result"), MB_OK | MB_ICONINFORMATION);
+				UINT uSuccessNum, uFailedNum;
+				ModifyHashOfEachFileInList(PathList, &uSuccessNum, &uFailedNum);
+				TCHAR szBuffer[64];
+				StringCchPrintf(szBuffer, 64, TEXT("共修改 %d 个文件, 其中成功 %d 个, 失败 %d 个"), uSuccessNum + uFailedNum, uSuccessNum, uFailedNum);
+				MessageBox(hWnd, szBuffer, TEXT("Result"), MB_OK | MB_ICONINFORMATION);
 				break;
+			}
 			case ID_BUTTON_ABOUT:
 				MessageBox(hWnd, TEXT("Hash Modifier\nChange your File Fingerprint easily!\nVersion: \tv1.1\nAuthor: \t雪峰"), TEXT("About"), MB_OK);
 				break;
@@ -180,33 +180,30 @@ VOID DisplayPathListInEditBox(_In_ HWND hEditBox, _Inout_ FILEPATHLIST *PathList
 
 	MergeFilePathListIntoOneMultiLineString(szMultilineString, uBytesRequiredForMerge, PathList);
 	SetWindowText(hEditBox, szMultilineString);
+	LocalFree(szMultilineString);
 }
 
-UINT GetTextBox(TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], TCHAR szFileName[10][MAX_PATH])
+BOOL FillFilePathListFromEditBox(_In_ HWND hEditBox, _Inout_ FILEPATHLIST *PathList)
 {
-	TCHAR *temp, *p;
-	temp = p = szNameBuffer;
-	UINT i, j, uFileNum;
-	i = j = 0;
-	while (*temp && *temp == TEXT('\r'))
-		temp += 2;
-	if (*temp == TEXT('\0'))
-		return 0;
-	else
-		uFileNum = 1;
-	while (*p != TEXT('\0'))
+	if (NULL == hEditBox || NULL == PathList)
 	{
-		if (*p == TEXT('\r'))
-		{
-			p += 2;
-			i++;
-			j = 0;
-			if (*p)
-				uFileNum++;
-			continue;
-		}
-		szFileName[i][j++] = *p++;
+		return FALSE;
 	}
-	return uFileNum;
-}
+	DestroyFilePathList(PathList);
 
+	INT iTextLength = GetWindowTextLength(hEditBox);
+	if (0 == iTextLength)
+	{
+		return FALSE;
+	}
+	LPTSTR szEditBoxStringBuffer = LocalAlloc(LMEM_FIXED, sizeof(TCHAR) * (iTextLength + 1));
+	if (NULL == szEditBoxStringBuffer)
+	{
+		return FALSE;
+	}
+
+	GetWindowText(hEditBox, szEditBoxStringBuffer, iTextLength + 1);
+	SplitOneMultiLineStringIntoFilePathList(szEditBoxStringBuffer, iTextLength, PathList);
+	LocalFree(szEditBoxStringBuffer);
+	return TRUE;
+}

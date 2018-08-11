@@ -97,10 +97,6 @@ VOID MergeFilePathListIntoOneMultiLineString(_Inout_ LPTSTR szMultilineString, _
 	}
 
 	FILEPATHINFONODE *pNode = PathList->Head;
-	if (NULL == pNode)
-	{
-		return;
-	}
 
 	while (pNode)
 	{
@@ -110,41 +106,87 @@ VOID MergeFilePathListIntoOneMultiLineString(_Inout_ LPTSTR szMultilineString, _
 	}
 }
 
-BOOL SetValue(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], TCHAR szNameBuffer[MAX_DRAG_FILE * MAX_PATH], UINT *uFileNum, UINT *uSuccessNum)
+VOID SplitOneMultiLineStringIntoFilePathList(_In_ LPTSTR szMultilineString, _In_ UINT uStringLength, _Inout_ FILEPATHLIST *PathList)
 {
-	UINT i;
-	for (i = 0; i < MAX_DRAG_FILE; i++)
-		wcscpy(szFileName[i], TEXT("\0"));
-	wcscpy(szNameBuffer, TEXT("\0"));
-	*uFileNum = 0;
-	*uSuccessNum = 0;
-	return TRUE;
+	if (NULL == szMultilineString || NULL == PathList || 0 == uStringLength)
+	{
+		return;
+	}
+
+	LPTSTR pStart, pCurrent, pEnd;
+	pStart = pCurrent = szMultilineString, pEnd = szMultilineString + uStringLength;
+	while (pCurrent && pCurrent <= pEnd)
+	{
+		if (pCurrent == pStart && (TEXT('\r') == *pCurrent || TEXT('\n') == *pCurrent) || TEXT(' ') == *pCurrent)
+		{
+			pStart = ++pCurrent;
+		}
+		else if (TEXT('\r') == *pCurrent && TEXT('\n') == *(pCurrent + 1))
+		{
+			*pCurrent = 0;
+			pCurrent += 2;
+			AppendPathToFilePathList(pStart, PathList);
+			pStart = pCurrent;
+		}
+		else
+		{
+			pCurrent++;
+		}
+	}
+
+	if (0 == pCurrent && 0 != pStart && pStart <= pEnd)
+	{
+		AppendPathToFilePathList(pStart, PathList);
+	}
 }
 
-UINT HashMod(TCHAR szFileName[MAX_DRAG_FILE][MAX_PATH], UINT uFileNum)
+VOID ModifyHashOfEachFileInList(_In_ FILEPATHLIST *PathList, _Out_ UINT *uSuccuessNum, _Out_ UINT *uFailedNum)
 {
-	int iResult = 0;
-	UINT uCount, uSuccess = 0;
-	FILE *fp;
-	for (uCount = 0; uCount < uFileNum; uCount++)
+	if (NULL == PathList || NULL == uSuccuessNum || 0 == uFailedNum)
 	{
-		fp = FOPEN(szFileName[uCount], TEXT("ab"));
-		if (fp == NULL)
-			continue;
-		iResult = fseek(fp, 0L, 2);
-		if (iResult == -1)
-		{
-			fclose(fp);
-			continue;
-		}
-		iResult = fwrite("\0", 1, 1, fp);
-		if (iResult != 1)
-		{
-			fclose(fp);
-			continue;
-		}
-		fclose(fp);
-		uSuccess++;
+		return;
 	}
-	return uSuccess;
+
+	INT iResult = 0;
+	UINT uSuccess = 0, uFailed = 0;
+	FILE *pFile;
+	FILEPATHINFONODE *pNode = PathList->Head;
+
+	while(pNode)
+	{
+		pFile = FOPEN(pNode->szFilePathString, TEXT("ab"));
+		if (pFile == NULL)
+		{
+			uFailed++;
+		}
+		else
+		{
+			iResult = fseek(pFile, 0L, 2);
+			if (iResult == -1)
+			{
+				fclose(pFile);
+				uFailed++;
+			}
+			else
+			{
+				iResult = fwrite("\0", 1, 1, pFile);
+				if (iResult != 1)
+				{
+					uFailed++;
+					fclose(pFile);
+				}
+				else
+				{
+					uSuccess++;
+					fclose(pFile);
+				}
+			}
+		}
+
+		pNode = pNode->Next;
+	}
+
+	*uSuccuessNum = uSuccess;
+	*uFailedNum = uFailed;
+	return;
 }
