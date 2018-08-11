@@ -97,6 +97,7 @@ VOID MergeFilePathListIntoOneMultiLineString(_Inout_ LPTSTR szMultilineString, _
 	}
 
 	FILEPATHINFONODE *pNode = PathList->Head;
+	*szMultilineString = 0;
 
 	while (pNode)
 	{
@@ -115,9 +116,9 @@ VOID SplitOneMultiLineStringIntoFilePathList(_In_ LPTSTR szMultilineString, _In_
 
 	LPTSTR pStart, pCurrent, pEnd;
 	pStart = pCurrent = szMultilineString, pEnd = szMultilineString + uStringLength;
-	while (pCurrent && pCurrent <= pEnd)
+	while (*pCurrent && pCurrent < pEnd)
 	{
-		if (pCurrent == pStart && (TEXT('\r') == *pCurrent || TEXT('\n') == *pCurrent) || TEXT(' ') == *pCurrent)
+		if (pCurrent == pStart && (TEXT('\r') == *pCurrent || TEXT('\n') == *pCurrent || TEXT(' ') == *pCurrent))
 		{
 			pStart = ++pCurrent;
 		}
@@ -134,7 +135,7 @@ VOID SplitOneMultiLineStringIntoFilePathList(_In_ LPTSTR szMultilineString, _In_
 		}
 	}
 
-	if (0 == pCurrent && 0 != pStart && pStart <= pEnd)
+	if (0 == *pCurrent && 0 != *pStart && pStart <= pEnd)
 	{
 		AppendPathToFilePathList(pStart, PathList);
 	}
@@ -154,14 +155,14 @@ VOID ModifyHashOfEachFileInList(_In_ FILEPATHLIST *PathList, _Out_ UINT *uSuccue
 
 	while(pNode)
 	{
-		pFile = FOPEN(pNode->szFilePathString, TEXT("ab"));
+		pFile = FOPEN(pNode->szFilePathString, TEXT("rb+"));
 		if (pFile == NULL)
 		{
 			uFailed++;
 		}
 		else
 		{
-			iResult = fseek(pFile, 0L, 2);
+			iResult = fseek(pFile, 0L, SEEK_END);
 			if (iResult == -1)
 			{
 				fclose(pFile);

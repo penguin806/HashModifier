@@ -138,6 +138,7 @@ BOOL RetrieveDragFilePath(_In_ HDROP hDrop, _Inout_ FILEPATHLIST *PathList)
 	{
 		return FALSE;
 	}
+	DestroyFilePathList(PathList);
 	UINT uDragFileNum = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
 	UINT uCurrentNum = 0;
 	TCHAR szBuffer[MAX_PATH];
@@ -172,7 +173,7 @@ VOID DisplayPathListInEditBox(_In_ HWND hEditBox, _Inout_ FILEPATHLIST *PathList
 		return;
 	}
 
-	LPTSTR szMultilineString = LocalAlloc(LMEM_FIXED, uBytesRequiredForMerge);
+	LPTSTR szMultilineString = LocalAlloc(LMEM_FIXED | LMEM_ZEROINIT, uBytesRequiredForMerge);
 	if (NULL == szMultilineString)
 	{
 		return;
