@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <Windows.h>
 #include <strsafe.h>
 #include "FileOperation.h"
@@ -148,38 +147,42 @@ VOID ModifyHashOfEachFileInList(_In_ FILEPATHLIST *PathList, _Out_ UINT *uSuccue
 		return;
 	}
 
-	INT iResult = 0;
 	UINT uSuccess = 0, uFailed = 0;
-	FILE *pFile;
+	HANDLE hFileToMod;
 	FILEPATHINFONODE *pNode = PathList->Head;
 
 	while(pNode)
 	{
-		pFile = FOPEN(pNode->szFilePathString, TEXT("rb+"));
-		if (pFile == NULL)
+		hFileToMod = CreateFile(pNode->szFilePathString, FILE_APPEND_DATA,
+			0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hFileToMod == INVALID_HANDLE_VALUE)
 		{
 			uFailed++;
 		}
 		else
 		{
-			iResult = fseek(pFile, 0L, SEEK_END);
-			if (iResult == -1)
+			DWORD dResult;
+			dResult = SetFilePointer(hFileToMod, 0, NULL, FILE_END);
+			if (INVALID_SET_FILE_POINTER == dResult)
 			{
-				fclose(pFile);
 				uFailed++;
+				CloseHandle(hFileToMod);
 			}
 			else
 			{
-				iResult = fwrite("\0", 1, 1, pFile);
-				if (iResult != 1)
+				CONST BYTE ZeroByte = 0;
+				DWORD ActualWritten;
+				BOOL bResult;
+				bResult = WriteFile(hFileToMod, &ZeroByte, 1, &ActualWritten, NULL);
+				if (FALSE == bResult || ActualWritten != 1)
 				{
 					uFailed++;
-					fclose(pFile);
+					CloseHandle(hFileToMod);
 				}
 				else
 				{
 					uSuccess++;
-					fclose(pFile);
+					CloseHandle(hFileToMod);
 				}
 			}
 		}

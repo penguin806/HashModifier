@@ -1,11 +1,5 @@
 #pragma once
 
-#ifdef UNICODE
-#define FOPEN _wfopen
-#else
-#define FOPEN fopen
-#endif
-
 struct FilePathInfoNode
 {
 	LPTSTR szFilePathString;
